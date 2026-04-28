@@ -30,13 +30,14 @@ import socket
 import sys
 import time as _time
 
-# Prefer a bundled HuggingFace model cache (`hf_cache/` next to this
-# file) so the script can run without internet — useful on Codespaces
-# or any restricted network. Must run BEFORE the sentence_transformers
-# import because env vars are read at construction time.
+# Pin the HuggingFace cache to `hf_cache/` next to this file so the
+# model only downloads once. Run `python warmup.py` first to populate
+# it; subsequent runs (here and in send_nl.py) load offline from cache.
+# Must run BEFORE the sentence_transformers import because env vars
+# are read at construction time.
 _LOCAL_HF = pathlib.Path(__file__).parent.resolve() / "hf_cache"
-if _LOCAL_HF.is_dir() and not os.environ.get("HF_HOME"):
-    os.environ["HF_HOME"] = str(_LOCAL_HF)
+_LOCAL_HF.mkdir(exist_ok=True)
+os.environ.setdefault("HF_HOME", str(_LOCAL_HF))
 
 import numpy as np
 import redis

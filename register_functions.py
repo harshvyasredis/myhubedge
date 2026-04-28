@@ -29,11 +29,11 @@ import pathlib
 import sys
 import time
 
-# Prefer the bundled HuggingFace cache (`hf_cache/` next to this file)
-# when present so the script runs offline.
+# Pin the HuggingFace cache to `hf_cache/` next to this file so the
+# model only downloads once. Run `python warmup.py` first to populate.
 _LOCAL_HF = pathlib.Path(__file__).parent.resolve() / "hf_cache"
-if _LOCAL_HF.is_dir() and not os.environ.get("HF_HOME"):
-    os.environ["HF_HOME"] = str(_LOCAL_HF)
+_LOCAL_HF.mkdir(exist_ok=True)
+os.environ.setdefault("HF_HOME", str(_LOCAL_HF))
 
 import numpy as np
 import redis

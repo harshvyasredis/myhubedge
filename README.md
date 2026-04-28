@@ -20,8 +20,9 @@ pip install .                      # via pyproject.toml (modern)
 # OR (if you use uv):
 uv pip install -r pyproject.toml
 
-# 4. Warm the embedding model — the model is bundled at workshop-client/hf_cache/
-#    (~44 MB, no internet required); warmup.py just verifies it loads.
+# 4. Download + cache the embedding model into ./hf_cache/ (~44 MB, one time).
+#    Subsequent runs load from cache — no internet needed after this.
+#    Re-run anytime to verify the cache is intact.
 python warmup.py
 
 # 5. Start your projector (keeps your unit's state doc alive)
