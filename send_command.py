@@ -13,7 +13,7 @@ Examples:
         --arg message="hello fleet" --arg secs=8
 
 Credentials resolve the same way as create_index.py and participant.py:
-    CLI flag > env var > secrets.py (HOST/PORT/USER/PASS) > localhost.
+    CLI flag > env var > redis_creds.py (HOST/PORT/USER/PASS) > localhost.
 
 Install:
     pip install redis
@@ -33,8 +33,8 @@ import redis
 def _load_secrets() -> tuple[dict, str | None]:
     here = os.path.dirname(os.path.abspath(__file__))
     candidates = [
-        os.path.join(here, "secrets.py"),
-        os.path.join(here, "..", "pico-current", "secrets.py"),
+        os.path.join(here, "redis_creds.py"),
+        os.path.join(here, "..", "pico-current", "redis_creds.py"),
     ]
     for raw in candidates:
         path = os.path.abspath(raw)
@@ -125,6 +125,15 @@ def main() -> None:
         r.ping()
     except redis.RedisError as e:
         print(f"redis: cannot connect — {e}", file=sys.stderr)
+        if _SECRETS_PATH is None and args.host == "localhost":
+            print(
+                "\nHint: no redis_creds.py was found in this directory and no "
+                "--host was passed, so the script defaulted to "
+                "localhost:6379.\nRun from the workshop-client/ directory, "
+                "copy redis_creds.py here, or pass --host/--port/--username/"
+                "--password explicitly.",
+                file=sys.stderr,
+            )
         sys.exit(1)
 
     payload = {

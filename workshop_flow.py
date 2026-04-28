@@ -29,8 +29,8 @@ import redis
 def _load_secrets() -> tuple[dict, str | None]:
     here = os.path.dirname(os.path.abspath(__file__))
     candidates = [
-        os.path.join(here, "secrets.py"),
-        os.path.join(here, "..", "pico-current", "secrets.py"),
+        os.path.join(here, "redis_creds.py"),
+        os.path.join(here, "..", "pico-current", "redis_creds.py"),
     ]
     for raw in candidates:
         path = os.path.abspath(raw)

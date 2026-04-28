@@ -25,8 +25,15 @@ import argparse
 import importlib.util
 import json
 import os
+import pathlib
 import sys
 import time
+
+# Prefer the bundled HuggingFace cache (`hf_cache/` next to this file)
+# when present so the script runs offline.
+_LOCAL_HF = pathlib.Path(__file__).parent.resolve() / "hf_cache"
+if _LOCAL_HF.is_dir() and not os.environ.get("HF_HOME"):
+    os.environ["HF_HOME"] = str(_LOCAL_HF)
 
 import numpy as np
 import redis
@@ -36,8 +43,8 @@ from sentence_transformers import SentenceTransformer
 def _load_secrets() -> tuple[dict, str | None]:
     here = os.path.dirname(os.path.abspath(__file__))
     candidates = [
-        os.path.join(here, "secrets.py"),
-        os.path.join(here, "..", "pico-current", "secrets.py"),
+        os.path.join(here, "redis_creds.py"),
+        os.path.join(here, "..", "pico-current", "redis_creds.py"),
     ]
     for raw in candidates:
         path = os.path.abspath(raw)
@@ -221,6 +228,15 @@ def main() -> None:
         r.ping()
     except redis.RedisError as e:
         print(f"redis: cannot connect — {e}", file=sys.stderr)
+        if _SECRETS_PATH is None and args.host == "localhost":
+            print(
+                "\nHint: no redis_creds.py was found in this directory and no "
+                "--host was passed, so the script defaulted to "
+                "localhost:6379.\nRun from the workshop-client/ directory, "
+                "copy redis_creds.py here, or pass --host/--port/--username/"
+                "--password explicitly.",
+                file=sys.stderr,
+            )
         sys.exit(1)
 
     # ── Load model ──

@@ -19,7 +19,7 @@ Schema written to Redis (state:<unit_id>):
 
 The Pico is a pure stream producer — this script is the ONLY JSON writer.
 
-Credentials resolve: CLI flag > env var > secrets.py > localhost default.
+Credentials resolve: CLI flag > env var > redis_creds.py > localhost default.
 
 Install:
     pip install redis
@@ -45,8 +45,8 @@ HISTORY_CAP = 20
 def _load_secrets() -> tuple[dict, str | None]:
     here = os.path.dirname(os.path.abspath(__file__))
     candidates = [
-        os.path.join(here, "secrets.py"),
-        os.path.join(here, "..", "pico-current", "secrets.py"),
+        os.path.join(here, "redis_creds.py"),
+        os.path.join(here, "..", "pico-current", "redis_creds.py"),
     ]
     for raw in candidates:
         path = os.path.abspath(raw)
@@ -96,6 +96,9 @@ def _seed_doc(unit_id: str, interval_ms: int = 10000) -> dict:
         "last_event_id": None,
         "last_update_ms": None,
         "history": [],
+        # Network identity — populated when the Pico emits kind=boot to
+        # stream:events. Lets attendees find their Pico without USB.
+        "network": {"ip": "", "ssid": "", "hostname": ""},
     }
 
 
@@ -163,6 +166,12 @@ def _apply_event(doc: dict, fields: dict, stream_id: str) -> tuple[dict, bool]:
         if len(doc["history"]) > HISTORY_CAP:
             doc["history"] = doc["history"][-HISTORY_CAP:]
 
+    elif kind == "boot":
+        doc.setdefault("network", {"ip": "", "ssid": "", "hostname": ""})
+        doc["network"]["ip"]       = fields.get("ip", "")
+        doc["network"]["ssid"]     = fields.get("ssid", "")
+        doc["network"]["hostname"] = fields.get("hostname", "")
+
     else:
         return doc, False
 
@@ -177,9 +186,24 @@ def write_doc(r: redis.Redis, unit_id: str, doc: dict) -> str:
     return "set"
 
 
+def _replay_boot_event(r: redis.Redis, unit_id: str, doc: dict) -> dict:
+    """Look back through stream:events for the most recent kind=boot for
+    this unit and apply it. No-op if not found."""
+    try:
+        entries = r.xrevrange(STREAM_EVENTS, count=200)
+        for stream_id, fields in entries:
+            if (fields.get("unit_id") == unit_id
+                    and fields.get("kind") == "boot"):
+                doc, _ = _apply_event(doc, fields, stream_id)
+                break
+    except Exception:
+        pass
+    return doc
+
+
 def bootstrap(r: redis.Redis, unit_id: str) -> dict:
     """Seed from the newest stream:readings entry matching this unit,
-    then replay any stream:events for it."""
+    then replay the most recent boot event for network identity."""
     doc = _seed_doc(unit_id)
     key = state_key(unit_id)
 
@@ -191,6 +215,13 @@ def bootstrap(r: redis.Redis, unit_id: str) -> dict:
             if isinstance(parsed, list):
                 parsed = parsed[0]
             if parsed.get("unit_id") == unit_id:
+                # Backfill the network section if this is a legacy doc
+                # written before we tracked it.
+                parsed.setdefault(
+                    "network", {"ip": "", "ssid": "", "hostname": ""}
+                )
+                parsed = _replay_boot_event(r, unit_id, parsed)
+                write_doc(r, unit_id, parsed)
                 print(f"bootstrap: restored existing state:{unit_id}")
                 return parsed
     except Exception:
@@ -201,12 +232,14 @@ def bootstrap(r: redis.Redis, unit_id: str) -> dict:
     for stream_id, fields in entries:
         if fields.get("device_id") == unit_id:
             doc, _ = _apply_reading(doc, fields, stream_id)
+            doc = _replay_boot_event(r, unit_id, doc)
             action = write_doc(r, unit_id, doc)
             print(f"bootstrap: {action} state:{unit_id} — "
                   f"temp={doc['current']['temp']} hum={doc['current']['humidity']}")
             return doc
 
     print(f"bootstrap: no recent sample for {unit_id} — waiting for data...")
+    doc = _replay_boot_event(r, unit_id, doc)
     write_doc(r, unit_id, doc)
     return doc
 
@@ -264,9 +297,15 @@ def follow(r: redis.Redis, unit_id: str, doc: dict) -> None:
                     if changed:
                         dirty = True
                         kind = fields.get("kind", "?")
-                        fn = fields.get("fn", "?")
-                        print(f"{stream_id}  event    state:{unit_id} — "
-                              f"{kind} {fn}")
+                        if kind == "boot":
+                            print(f"{stream_id}  event    state:{unit_id} — "
+                                  f"boot ip={fields.get('ip','?')} "
+                                  f"ssid={fields.get('ssid','?')!r} "
+                                  f"host={fields.get('hostname','?')}.local")
+                        else:
+                            fn = fields.get("fn", "?")
+                            print(f"{stream_id}  event    state:{unit_id} — "
+                                  f"{kind} {fn}")
 
         if got_reading:
             last_reading_time = time.time()
@@ -275,12 +314,45 @@ def follow(r: redis.Redis, unit_id: str, doc: dict) -> None:
             write_doc(r, unit_id, doc)
 
 
+def _connect_or_die(args) -> "redis.Redis":
+    """Connect, give a clear hint if we ended up pointed at localhost
+    because redis_creds.py wasn't found and no flags/env-vars were set."""
+    r = redis.Redis(
+        host=args.host, port=args.port,
+        username=args.username, password=args.password,
+        decode_responses=True,
+    )
+    try:
+        r.ping()
+        return r
+    except redis.RedisError as e:
+        print(f"redis: cannot connect — {e}", file=sys.stderr)
+        if _SECRETS_PATH is None and args.host == "localhost":
+            print(
+                "\nHint: no redis_creds.py was found in this directory and no "
+                "--host was passed, so the script defaulted to "
+                "localhost:6379 (which isn't reachable here).\n"
+                "Fix one of:\n"
+                "  • Run from the workshop-client/ directory (the one with redis_creds.py)\n"
+                "  • Copy redis_creds.py into this directory\n"
+                "  • Pass --host/--port/--username/--password explicitly\n"
+                "  • Or set the PICO_REDIS_HOST/PORT/USER/PASSWORD env vars",
+                file=sys.stderr,
+            )
+        sys.exit(1)
+
+
 def main() -> None:
     p = argparse.ArgumentParser(
         description="Stream projector — tails readings+events, writes nested JSON to state:<unit>."
     )
-    p.add_argument("--unit", default="pico-unit-1",
-                   help="unit_id to track (default: pico-unit-1)")
+    # Accept the unit either positionally (`participant.py pico-unit-2`) or
+    # via --unit. Positional wins if both are given.
+    p.add_argument("unit", nargs="?", default=None,
+                   help="unit_id to track, e.g. pico-unit-2 "
+                        "(default: pico-unit-1)")
+    p.add_argument("--unit", dest="unit_flag", default=None,
+                   help="same as the positional argument")
     p.add_argument(
         "--host",
         default=(os.environ.get("PICO_REDIS_HOST")
@@ -305,21 +377,12 @@ def main() -> None:
                  or _SECRETS.get("password")),
     )
     args = p.parse_args()
+    args.unit = args.unit or args.unit_flag or "pico-unit-1"
 
     if _SECRETS_PATH:
         print(f"secrets: loaded from {_SECRETS_PATH}")
 
-    r = redis.Redis(
-        host=args.host, port=args.port,
-        username=args.username, password=args.password,
-        decode_responses=True,
-    )
-
-    try:
-        r.ping()
-    except redis.RedisError as e:
-        print(f"redis: cannot connect — {e}", file=sys.stderr)
-        sys.exit(1)
+    r = _connect_or_die(args)
 
     # Probe JSON.SET
     try:
@@ -342,6 +405,19 @@ def main() -> None:
 
     print(f"connected redis://{args.host}:{args.port} — tracking {args.unit!r}")
     doc = bootstrap(r, args.unit)
+
+    # Surface network identity up front so attendees know where their
+    # Pico lives on the LAN. Comes from the kind=boot event projected
+    # into doc["network"]; empty until the Pico has emitted it.
+    net = doc.get("network") or {}
+    print(f"  unit_id : {doc.get('unit_id')}")
+    print(f"  ip      : {net.get('ip') or '(waiting for boot event)'}")
+    if net.get("hostname"):
+        print(f"  hostname: {net['hostname']}.local")
+    else:
+        print(f"  hostname: (waiting for boot event)")
+    print(f"  ssid    : {net.get('ssid') or '(waiting for boot event)'}")
+
     try:
         follow(r, args.unit, doc)
     except KeyboardInterrupt:

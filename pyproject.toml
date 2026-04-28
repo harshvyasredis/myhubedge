@@ -1,0 +1,39 @@
+[project]
+name = "workshop-client"
+version = "1.0.0"
+description = "Pico + Redis workshop client — talk to a live Pico fleet via Redis Cloud Enterprise."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "redis>=5.0",
+    "sentence-transformers>=3.0",
+    "redisvl>=0.15",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+# Workshop-time helpers; not strictly required to run participant.py.
+dev = []
+
+# Embedding model used by send_nl.py and register_functions.py.
+# Not a Python package, so pip cannot fetch it automatically — run
+# `python warmup.py` once after install to prime the HuggingFace cache.
+[tool.workshop_client]
+embedding_model = "redis/langcache-embed-v3-small"
+embedding_dim = 300
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = [
+    "participant",
+    "send_command",
+    "send_nl",
+    "create_index",
+    "register_functions",
+    "workshop_flow",
+    "warmup",
+    "redis_creds",
+]

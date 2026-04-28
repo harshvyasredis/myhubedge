@@ -5,17 +5,39 @@ Talk to a live Raspberry Pi Pico fleet through Redis Cloud using natural languag
 ## Quick Start
 
 ```bash
-# 1. Clone and install
+# 1. Clone (or unzip) and enter the directory
 git clone <this-repo>
 cd workshop-client
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
 
-# 2. Start your projector (keeps your unit's state doc alive)
-python participant.py --unit pico-unit-1
+# 2. Create + activate a Python virtual environment
+python3 -m venv .venv
+source .venv/bin/activate          # Windows:  .venv\Scripts\activate
 
-# 3. In another terminal — interactive NL command client
+# 3. Install dependencies — pick one:
+pip install -r requirements.txt    # classic, fastest path
+# OR:
+pip install .                      # via pyproject.toml (modern)
+# OR (if you use uv):
+uv pip install -r pyproject.toml
+
+# 4. Warm the embedding model — the model is bundled at workshop-client/hf_cache/
+#    (~44 MB, no internet required); warmup.py just verifies it loads.
+python warmup.py
+
+# 5. Start your projector (keeps your unit's state doc alive)
+python participant.py pico-unit-1
+
+# 6. In another terminal — natural-language command client
+#    (remember to `source .venv/bin/activate` in the new tab too)
 python send_nl.py
+```
+
+**Re-entering the project later?** Just re-activate the venv:
+
+```bash
+cd workshop-client
+source .venv/bin/activate
+python participant.py pico-unit-1
 ```
 
 Then type natural language commands:
@@ -57,7 +79,7 @@ Run the scripts in the order below. The Redis side (indexes + function embedding
 
 | File | Purpose |
 |------|---------|
-| `secrets.py`        | Redis Cloud credentials — `HOST`, `PORT`, `USER`, `PASS` |
+| `redis_creds.py`        | Redis Cloud credentials — `HOST`, `PORT`, `USER`, `PASS` |
 | `requirements.txt`  | Python deps; installed by `pip install -r requirements.txt` in Quick Start |
 
 ### Already set up for you (don't rerun on the shared Redis)
@@ -71,14 +93,14 @@ The shared Redis already has its indexes and function embeddings live, so you ca
 
 ## Connecting to Redis
 
-Credentials live in `secrets.py` (`HOST`, `PORT`, `USER`, `PASS`). Pick one client:
+Credentials live in `redis_creds.py` (`HOST`, `PORT`, `USER`, `PASS`). Pick one client:
 
 ### Redis Insight (GUI)
 
 1. Download from https://redis.io/insight/
 2. **Add Redis database** → **Connect to a Redis Database** → **Add Database Manually**
 3. Fill in:
-   - Host: value of `HOST` in `secrets.py`
+   - Host: value of `HOST` in `redis_creds.py`
    - Port: value of `PORT`
    - Username: `default`
    - Password: value of `PASS`
@@ -90,7 +112,7 @@ Credentials live in `secrets.py` (`HOST`, `PORT`, `USER`, `PASS`). Pick one clie
 # Install (macOS)
 brew install redis
 
-# Connect using values from secrets.py — substitute <HOST>, <PORT>, <PASS>
+# Connect using values from redis_creds.py — substitute <HOST>, <PORT>, <PASS>
 redis-cli -h <HOST> -p <PORT> -a '<PASS>' --no-auth-warning
 
 # Or as a single URL (recommended — survives copy/paste better)
