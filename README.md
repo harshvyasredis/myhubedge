@@ -4,7 +4,9 @@ Talk to a live Raspberry Pi Pico fleet through Redis Cloud using natural languag
 
 ## Quick Start
 
-This project uses [`uv`](https://docs.astral.sh/uv/) for dependency management. Install once:
+`make` is the front door. `make` (or `make help`) lists every target.
+
+**One-time prerequisites** — install [`uv`](https://docs.astral.sh/uv/):
 
 ```bash
 # macOS / Linux
@@ -12,37 +14,51 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # or, if you have pip:  pip install uv
 ```
 
-Then:
+Most laptops already have `make`; on Windows install via WSL or Chocolatey.
+
+**Then:**
 
 ```bash
 # 1. Clone and enter the directory
 git clone <this-repo>
 cd myhubedge
 
-# 2. Install dependencies into a managed .venv (creates uv.lock-pinned env)
-uv sync
-
-# 3. Set up your Redis credentials.
+# 2. Set up your Redis credentials.
 #    Copy the template and fill in PICO_REDIS_HOST / PORT / USER / PASSWORD.
 #    `.env` is gitignored — never commit it.
 cp .env.example .env
 $EDITOR .env
 
-# 4. Download + cache the embedding model into ./hf_cache/ (~44 MB, one time).
-#    Subsequent runs load from cache — no internet needed after this.
-#    Re-run anytime to verify the cache is intact.
-uv run warmup.py
+# 3. Full first-run bootstrap: deps + embedding model + indexes + fn:* docs.
+#    ~44 MB one-time model download. Idempotent — safe to re-run.
+make setup
 
-# 5. Start your projector (keeps your unit's state doc alive)
-uv run participant.py pico-unit-1
+# 4. Smoke-test the connection and see what's in your DB
+make ping
+make status
+
+# 5. Start your projector for your unit (keeps state:<unit> alive)
+make projector UNIT=pico-unit-1
 
 # 6. In another terminal — natural-language command client
-uv run send_nl.py
+make nl
 ```
 
-`uv run <script>` automatically activates the project's `.venv` for the duration of the command — no `source .venv/bin/activate` needed. If you prefer the classic flow, `source .venv/bin/activate` still works after `uv sync`.
+That's it. `make` chains the right scripts in the right order; under the hood it's `uv run create_index.py`, `uv run register_functions.py`, etc. — same scripts the cheatsheet talks about, just sequenced for you.
 
-**Re-entering the project later?** Just `cd` in and `uv run …`. If `pyproject.toml` or `uv.lock` changed, `uv sync` brings the env up to date.
+### Daily loop
+
+```bash
+make projector UNIT=pico-unit-1   # tab 1: projector for your unit
+make nl                            # tab 2: NL command REPL
+make status                        # any time: DB inventory
+```
+
+### When you need to drop down a level
+
+The Makefile is plumbing only. The educational primitives — `XADD`, `FT.SEARCH`, `JSON.SET`, `FT.AGGREGATE` — are in [`command_cheatsheet.md`](./command_cheatsheet.md) and you should still type those directly against `redis-cli` or Redis Insight. That's the workshop.
+
+If `pyproject.toml` or `uv.lock` change, `make install` (alias for `uv sync`) brings the env up to date.
 
 Then type natural language commands:
 
@@ -84,7 +100,8 @@ Run the scripts in the order below. The Redis side (indexes + function embedding
 | File | Purpose |
 |------|---------|
 | `.env`              | Redis Cloud credentials. Copy `.env.example` to `.env` and fill in `PICO_REDIS_HOST`, `PICO_REDIS_PORT`, `PICO_REDIS_USER`, `PICO_REDIS_PASSWORD`. Gitignored — never commit it. |
-| `pyproject.toml` + `uv.lock` | Python deps. Installed via `uv sync` in Quick Start. Run scripts with `uv run <name>.py`. |
+| `Makefile`          | Workshop orchestrator. `make help` lists targets — bootstrap, ping, status, projector, nl, reset. |
+| `pyproject.toml` + `uv.lock` | Python deps. Installed via `uv sync` (or `make install`). |
 
 ### Already set up for you (don't rerun on the shared Redis)
 
