@@ -19,7 +19,7 @@ Schema written to Redis (state:<unit_id>):
 
 The Pico is a pure stream producer — this script is the ONLY JSON writer.
 
-Credentials resolve: CLI flag > env var > redis_creds.py > localhost default.
+Credentials resolve: CLI flag > env var > .env (next to this script) > localhost default.
 
 Install:
     pip install redis
@@ -30,7 +30,6 @@ Run:
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import os
 import sys
@@ -42,33 +41,24 @@ import redis
 HISTORY_CAP = 20
 
 
-def _load_secrets() -> tuple[dict, str | None]:
+def _load_env() -> str | None:
+    """Load .env (next to this script) into os.environ. Existing env
+    vars take precedence — same semantics as python-dotenv defaults."""
     here = os.path.dirname(os.path.abspath(__file__))
-    candidates = [
-        os.path.join(here, "redis_creds.py"),
-        os.path.join(here, "..", "pico-current", "redis_creds.py"),
-    ]
-    for raw in candidates:
-        path = os.path.abspath(raw)
-        if not os.path.isfile(path):
-            continue
-        spec = importlib.util.spec_from_file_location("_pico_secrets", path)
-        mod = importlib.util.module_from_spec(spec)
-        try:
-            spec.loader.exec_module(mod)
-        except Exception as e:
-            print(f"secrets: failed to load {path} — {e}", file=sys.stderr)
-            continue
-        return {
-            "host":     getattr(mod, "HOST", None),
-            "port":     getattr(mod, "PORT", None),
-            "user":     getattr(mod, "USER", None),
-            "password": getattr(mod, "PASS", None),
-        }, path
-    return {}, None
+    path = os.path.join(here, ".env")
+    if not os.path.isfile(path):
+        return None
+    with open(path) as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    return path
 
 
-_SECRETS, _SECRETS_PATH = _load_secrets()
+_ENV_PATH = _load_env()
 
 STREAM_READINGS = "stream:readings"
 STREAM_EVENTS = "stream:events"
@@ -316,7 +306,7 @@ def follow(r: redis.Redis, unit_id: str, doc: dict) -> None:
 
 def _connect_or_die(args) -> "redis.Redis":
     """Connect, give a clear hint if we ended up pointed at localhost
-    because redis_creds.py wasn't found and no flags/env-vars were set."""
+    because .env wasn't found and no flags/env-vars were set."""
     r = redis.Redis(
         host=args.host, port=args.port,
         username=args.username, password=args.password,
@@ -327,16 +317,15 @@ def _connect_or_die(args) -> "redis.Redis":
         return r
     except redis.RedisError as e:
         print(f"redis: cannot connect — {e}", file=sys.stderr)
-        if _SECRETS_PATH is None and args.host == "localhost":
+        if _ENV_PATH is None and args.host == "localhost":
             print(
-                "\nHint: no redis_creds.py was found in this directory and no "
+                "\nHint: no .env was found next to this script and no "
                 "--host was passed, so the script defaulted to "
                 "localhost:6379 (which isn't reachable here).\n"
                 "Fix one of:\n"
-                "  • Run from the workshop-client/ directory (the one with redis_creds.py)\n"
-                "  • Copy redis_creds.py into this directory\n"
+                "  • Copy .env.example to .env and fill in your Redis Cloud creds\n"
                 "  • Pass --host/--port/--username/--password explicitly\n"
-                "  • Or set the PICO_REDIS_HOST/PORT/USER/PASSWORD env vars",
+                "  • Or export PICO_REDIS_HOST/PORT/USER/PASSWORD env vars",
                 file=sys.stderr,
             )
         sys.exit(1)
@@ -355,32 +344,25 @@ def main() -> None:
                    help="same as the positional argument")
     p.add_argument(
         "--host",
-        default=(os.environ.get("PICO_REDIS_HOST")
-                 or _SECRETS.get("host")
-                 or "localhost"),
+        default=os.environ.get("PICO_REDIS_HOST", "localhost"),
     )
     p.add_argument(
         "--port", type=int,
-        default=int(os.environ.get("PICO_REDIS_PORT")
-                    or _SECRETS.get("port")
-                    or 6379),
+        default=int(os.environ.get("PICO_REDIS_PORT", 6379)),
     )
     p.add_argument(
         "--username",
-        default=(os.environ.get("PICO_REDIS_USER")
-                 or _SECRETS.get("user")
-                 or "default"),
+        default=os.environ.get("PICO_REDIS_USER", "default"),
     )
     p.add_argument(
         "--password",
-        default=(os.environ.get("PICO_REDIS_PASSWORD")
-                 or _SECRETS.get("password")),
+        default=os.environ.get("PICO_REDIS_PASSWORD"),
     )
     args = p.parse_args()
     args.unit = args.unit or args.unit_flag or "pico-unit-1"
 
-    if _SECRETS_PATH:
-        print(f"secrets: loaded from {_SECRETS_PATH}")
+    if _ENV_PATH:
+        print(f"env: loaded from {_ENV_PATH}")
 
     r = _connect_or_die(args)
 

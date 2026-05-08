@@ -2,10 +2,12 @@
 
 Indexed by function. Each row shows both **Redis Insight** (paste into Workbench / CLI panel) and **redis-cli** (terminal). Where a Python script is the cleanest form, that's listed too.
 
-The redis-cli examples assume `$REDIS_URL` is set:
+The redis-cli examples assume `$REDIS_URL` is set. Build it from the values in your `.env` (see `.env.example` for the variable names):
 
 ```bash
-export REDIS_URL="redis://default:***REMOVED***@redis-11720.c74.us-east-1-4.ec2.cloud.redislabs.com:11720"
+# After you've copied .env.example to .env and filled it in:
+set -a; source .env; set +a
+export REDIS_URL="redis://${PICO_REDIS_USER}:${PICO_REDIS_PASSWORD}@${PICO_REDIS_HOST}:${PICO_REDIS_PORT}"
 redis-cli -u "$REDIS_URL" PING       # → PONG
 ```
 
@@ -16,18 +18,19 @@ redis-cli -u "$REDIS_URL" PING       # → PONG
 ### Redis Insight (GUI)
 
 1. Open Redis Insight → **Add Redis database** → **Connect to a Redis Database** → **Add Database Manually**
-2. Fill in:
-   - **Host**:     `redis-11720.c74.us-east-1-4.ec2.cloud.redislabs.com`
-   - **Port**:     `11720`
-   - **Username**: `default`
-   - **Password**: `***REMOVED***`
+2. Fill in (values come from your `.env`):
+   - **Host**:     value of `PICO_REDIS_HOST`
+   - **Port**:     value of `PICO_REDIS_PORT`
+   - **Username**: value of `PICO_REDIS_USER` (typically `default`)
+   - **Password**: value of `PICO_REDIS_PASSWORD`
 3. Open the database → **Workbench** (or **CLI**) tab → paste commands.
 
 ### redis-cli (terminal)
 
 ```bash
 brew install redis     # macOS, once
-redis-cli -u "redis://default:***REMOVED***@redis-11720.c74.us-east-1-4.ec2.cloud.redislabs.com:11720"
+# After loading .env into your shell as shown above:
+redis-cli -u "$REDIS_URL"
 ```
 
 ---

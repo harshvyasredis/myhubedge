@@ -16,7 +16,6 @@ Each step:
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import os
 import sys
@@ -26,33 +25,24 @@ import socket
 import redis
 
 
-def _load_secrets() -> tuple[dict, str | None]:
+def _load_env() -> str | None:
+    """Load .env (next to this script) into os.environ. Existing env
+    vars take precedence — same semantics as python-dotenv defaults."""
     here = os.path.dirname(os.path.abspath(__file__))
-    candidates = [
-        os.path.join(here, "redis_creds.py"),
-        os.path.join(here, "..", "pico-current", "redis_creds.py"),
-    ]
-    for raw in candidates:
-        path = os.path.abspath(raw)
-        if not os.path.isfile(path):
-            continue
-        spec = importlib.util.spec_from_file_location("_pico_secrets", path)
-        mod = importlib.util.module_from_spec(spec)
-        try:
-            spec.loader.exec_module(mod)
-        except Exception as e:
-            print(f"secrets: failed to load {path} — {e}", file=sys.stderr)
-            continue
-        return {
-            "host":     getattr(mod, "HOST", None),
-            "port":     getattr(mod, "PORT", None),
-            "user":     getattr(mod, "USER", None),
-            "password": getattr(mod, "PASS", None),
-        }, path
-    return {}, None
+    path = os.path.join(here, ".env")
+    if not os.path.isfile(path):
+        return None
+    with open(path) as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    return path
 
 
-_SECRETS, _SECRETS_PATH = _load_secrets()
+_ENV_PATH = _load_env()
 
 BLUE = "\033[94m"
 GREEN = "\033[92m"
@@ -381,30 +371,26 @@ def main() -> None:
     p.add_argument("--unit", default="pico-unit-1")
     p.add_argument(
         "--host",
-        default=(os.environ.get("PICO_REDIS_HOST")
-                 or _SECRETS.get("host")
-                 or "localhost"),
+        default=os.environ.get("PICO_REDIS_HOST", "localhost"),
     )
     p.add_argument(
         "--port", type=int,
-        default=int(os.environ.get("PICO_REDIS_PORT")
-                    or _SECRETS.get("port")
-                    or 6379),
+        default=int(os.environ.get("PICO_REDIS_PORT", 6379)),
     )
     p.add_argument(
         "--username",
-        default=(os.environ.get("PICO_REDIS_USER")
-                 or _SECRETS.get("user")
-                 or "default"),
+        default=os.environ.get("PICO_REDIS_USER", "default"),
     )
     p.add_argument(
         "--password",
-        default=(os.environ.get("PICO_REDIS_PASSWORD")
-                 or _SECRETS.get("password")),
+        default=os.environ.get("PICO_REDIS_PASSWORD"),
     )
     p.add_argument("--start", type=int, default=1,
                    help="Start at step N (default: 1)")
     args = p.parse_args()
+
+    if _ENV_PATH:
+        print(f"env: loaded from {_ENV_PATH}")
 
     r = redis.Redis(
         host=args.host, port=args.port,

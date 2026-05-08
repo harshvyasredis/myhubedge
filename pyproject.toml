@@ -35,5 +35,4 @@ py-modules = [
     "register_functions",
     "workshop_flow",
     "warmup",
-    "redis_creds",
 ]

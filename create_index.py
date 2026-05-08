@@ -16,45 +16,35 @@ Run once:
 
 Re-run safely with --recreate to DROPINDEX + CREATE (docs untouched).
 
-Credentials: CLI flag > env var > redis_creds.py > localhost default.
+Credentials: CLI flag > env var > .env (next to this script) > localhost default.
 """
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import os
 import sys
 
 import redis
 
 
-def _load_secrets() -> tuple[dict, str | None]:
+def _load_env() -> str | None:
+    """Load .env (next to this script) into os.environ. Existing env
+    vars take precedence — same semantics as python-dotenv defaults."""
     here = os.path.dirname(os.path.abspath(__file__))
-    candidates = [
-        os.path.join(here, "redis_creds.py"),
-        os.path.join(here, "..", "pico-current", "redis_creds.py"),
-    ]
-    for raw in candidates:
-        path = os.path.abspath(raw)
-        if not os.path.isfile(path):
-            continue
-        spec = importlib.util.spec_from_file_location("_pico_secrets", path)
-        mod = importlib.util.module_from_spec(spec)
-        try:
-            spec.loader.exec_module(mod)
-        except Exception as e:
-            print(f"secrets: failed to load {path} — {e}", file=sys.stderr)
-            continue
-        return {
-            "host":     getattr(mod, "HOST", None),
-            "port":     getattr(mod, "PORT", None),
-            "user":     getattr(mod, "USER", None),
-            "password": getattr(mod, "PASS", None),
-        }, path
-    return {}, None
+    path = os.path.join(here, ".env")
+    if not os.path.isfile(path):
+        return None
+    with open(path) as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    return path
 
 
-_SECRETS, _SECRETS_PATH = _load_secrets()
+_ENV_PATH = _load_env()
 
 
 # ---- idx:state — nested schema over state:<unit_id> docs ----
@@ -105,13 +95,12 @@ def connect(args: argparse.Namespace) -> redis.Redis:
         r.ping()
     except redis.RedisError as e:
         print(f"redis: cannot connect — {e}", file=sys.stderr)
-        if _SECRETS_PATH is None and args.host == "localhost":
+        if _ENV_PATH is None and args.host == "localhost":
             print(
-                "\nHint: no redis_creds.py was found in this directory and no "
+                "\nHint: no .env was found next to this script and no "
                 "--host was passed, so the script defaulted to "
-                "localhost:6379.\nRun from the workshop-client/ directory, "
-                "copy redis_creds.py here, or pass --host/--port/--username/"
-                "--password explicitly.",
+                "localhost:6379.\nCopy .env.example to .env and fill it in, "
+                "or pass --host/--port/--username/--password explicitly.",
                 file=sys.stderr,
             )
         sys.exit(1)
@@ -171,33 +160,26 @@ def main() -> None:
     )
     p.add_argument(
         "--host",
-        default=(os.environ.get("PICO_REDIS_HOST")
-                 or _SECRETS.get("host")
-                 or "localhost"),
+        default=os.environ.get("PICO_REDIS_HOST", "localhost"),
     )
     p.add_argument(
         "--port", type=int,
-        default=int(os.environ.get("PICO_REDIS_PORT")
-                    or _SECRETS.get("port")
-                    or 6379),
+        default=int(os.environ.get("PICO_REDIS_PORT", 6379)),
     )
     p.add_argument(
         "--username",
-        default=(os.environ.get("PICO_REDIS_USER")
-                 or _SECRETS.get("user")
-                 or "default"),
+        default=os.environ.get("PICO_REDIS_USER", "default"),
     )
     p.add_argument(
         "--password",
-        default=(os.environ.get("PICO_REDIS_PASSWORD")
-                 or _SECRETS.get("password")),
+        default=os.environ.get("PICO_REDIS_PASSWORD"),
     )
     p.add_argument("--recreate", action="store_true",
                    help="DROPINDEX first, then CREATE. JSON docs NOT deleted.")
     args = p.parse_args()
 
-    if _SECRETS_PATH:
-        print(f"secrets: loaded from {_SECRETS_PATH}")
+    if _ENV_PATH:
+        print(f"env: loaded from {_ENV_PATH}")
     print(f"connecting redis://{args.username}@{args.host}:{args.port}")
 
     r = connect(args)

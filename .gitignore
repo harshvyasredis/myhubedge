@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 .venv/
 .DS_Store
+.env
+redis_creds.py
+hf_cache/

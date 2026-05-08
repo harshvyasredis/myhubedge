@@ -20,15 +20,21 @@ pip install .                      # via pyproject.toml (modern)
 # OR (if you use uv):
 uv pip install -r pyproject.toml
 
-# 4. Download + cache the embedding model into ./hf_cache/ (~44 MB, one time).
+# 4. Set up your Redis credentials.
+#    Copy the template and fill in PICO_REDIS_HOST / PORT / USER / PASSWORD.
+#    `.env` is gitignored — never commit it.
+cp .env.example .env
+$EDITOR .env
+
+# 5. Download + cache the embedding model into ./hf_cache/ (~44 MB, one time).
 #    Subsequent runs load from cache — no internet needed after this.
 #    Re-run anytime to verify the cache is intact.
 python warmup.py
 
-# 5. Start your projector (keeps your unit's state doc alive)
+# 6. Start your projector (keeps your unit's state doc alive)
 python participant.py pico-unit-1
 
-# 6. In another terminal — natural-language command client
+# 7. In another terminal — natural-language command client
 #    (remember to `source .venv/bin/activate` in the new tab too)
 python send_nl.py
 ```
@@ -80,7 +86,7 @@ Run the scripts in the order below. The Redis side (indexes + function embedding
 
 | File | Purpose |
 |------|---------|
-| `redis_creds.py`        | Redis Cloud credentials — `HOST`, `PORT`, `USER`, `PASS` |
+| `.env`              | Redis Cloud credentials. Copy `.env.example` to `.env` and fill in `PICO_REDIS_HOST`, `PICO_REDIS_PORT`, `PICO_REDIS_USER`, `PICO_REDIS_PASSWORD`. Gitignored — never commit it. |
 | `requirements.txt`  | Python deps; installed by `pip install -r requirements.txt` in Quick Start |
 
 ### Already set up for you (don't rerun on the shared Redis)
@@ -94,17 +100,24 @@ The shared Redis already has its indexes and function embeddings live, so you ca
 
 ## Connecting to Redis
 
-Credentials live in `redis_creds.py` (`HOST`, `PORT`, `USER`, `PASS`). Pick one client:
+Credentials live in `.env` (gitignored). Copy the template once:
+
+```bash
+cp .env.example .env
+# then edit .env and fill in PICO_REDIS_HOST / PICO_REDIS_PORT / PICO_REDIS_USER / PICO_REDIS_PASSWORD
+```
+
+The Python scripts auto-load `.env` from the directory they live in. Pick one client:
 
 ### Redis Insight (GUI)
 
 1. Download from https://redis.io/insight/
 2. **Add Redis database** → **Connect to a Redis Database** → **Add Database Manually**
 3. Fill in:
-   - Host: value of `HOST` in `redis_creds.py`
-   - Port: value of `PORT`
+   - Host: value of `PICO_REDIS_HOST` in `.env`
+   - Port: value of `PICO_REDIS_PORT`
    - Username: `default`
-   - Password: value of `PASS`
+   - Password: value of `PICO_REDIS_PASSWORD`
 4. Open the database → **Workbench** (or **CLI**) tab — paste commands directly.
 
 ### Redis CLI (terminal)
@@ -113,7 +126,7 @@ Credentials live in `redis_creds.py` (`HOST`, `PORT`, `USER`, `PASS`). Pick one 
 # Install (macOS)
 brew install redis
 
-# Connect using values from redis_creds.py — substitute <HOST>, <PORT>, <PASS>
+# Connect using values from .env — substitute <HOST>, <PORT>, <PASS>
 redis-cli -h <HOST> -p <PORT> -a '<PASS>' --no-auth-warning
 
 # Or as a single URL (recommended — survives copy/paste better)
