@@ -56,7 +56,15 @@ make status                        # any time: DB inventory
 
 ### When you need to drop down a level
 
-The Makefile is plumbing only. The educational primitives — `XADD`, `FT.SEARCH`, `JSON.SET`, `FT.AGGREGATE` — are in [`command_cheatsheet.md`](./command_cheatsheet.md) and you should still type those directly against `redis-cli` or Redis Insight. That's the workshop.
+The Makefile is plumbing only. The educational primitives — `XADD`, `FT.SEARCH`, `JSON.SET`, `FT.AGGREGATE` — are in [`command_cheatsheet.md`](./command_cheatsheet.md) and you should still type those directly. Two convenient ways:
+
+```bash
+make cli                          # interactive redis-cli prompt, already authed
+eval "$(make redis-url)"          # exports $REDIS_URL into your shell;
+                                  # cheatsheet `redis-cli -u "$REDIS_URL" …` examples now just work
+```
+
+For the GUI, **Redis Insight** (desktop or browser at https://redis.io/insight/) is the supported path — the Redis for VS Code extension depends on an OS keyring and won't run cleanly inside code-server / headless Linux containers.
 
 If `pyproject.toml` or `uv.lock` change, `make install` (alias for `uv sync`) brings the env up to date.
 

@@ -9,7 +9,7 @@
 
 .DEFAULT_GOAL := help
 .PHONY: help setup install warmup bootstrap create-index register-functions \
-        ping status projector nl workshop reset-indexes clean
+        ping status cli redis-url projector nl workshop reset-indexes clean
 
 # Override on the command line:  make projector UNIT=pico-unit-2
 UNIT ?= pico-unit-1
@@ -57,6 +57,15 @@ ping: ## Verify Redis connectivity (PING + server version)
 
 status: ## Show DB inventory: keys, streams, indexes, fn:*, state:*
 	@$(RUN) python -c "$$STATUS_PROG"
+
+cli: ## Open an interactive redis-cli prompt connected to the workshop DB
+	@set -a; . ./.env; set +a; \
+	  redis-cli -h "$$PICO_REDIS_HOST" -p "$$PICO_REDIS_PORT" \
+	            -a "$$PICO_REDIS_PASSWORD" --no-auth-warning
+
+redis-url: ## Print an `export REDIS_URL=…` line you can eval into your shell
+	@set -a; . ./.env; set +a; \
+	  echo "export REDIS_URL=\"redis://$$PICO_REDIS_USER:$$PICO_REDIS_PASSWORD@$$PICO_REDIS_HOST:$$PICO_REDIS_PORT\""
 
 ##@ Run
 
