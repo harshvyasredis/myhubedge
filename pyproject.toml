@@ -17,7 +17,7 @@ dev = []
 
 # Embedding model used by send_nl.py and register_functions.py.
 # Not a Python package, so pip cannot fetch it automatically — run
-# `python warmup.py` once after install to prime the HuggingFace cache.
+# `uv run warmup.py` once after install to prime the HuggingFace cache.
 [tool.workshop_client]
 embedding_model = "redis/langcache-embed-v3-small"
 embedding_dim = 300

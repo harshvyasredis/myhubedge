@@ -4,48 +4,45 @@ Talk to a live Raspberry Pi Pico fleet through Redis Cloud using natural languag
 
 ## Quick Start
 
+This project uses [`uv`](https://docs.astral.sh/uv/) for dependency management. Install once:
+
 ```bash
-# 1. Clone (or unzip) and enter the directory
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or, if you have pip:  pip install uv
+```
+
+Then:
+
+```bash
+# 1. Clone and enter the directory
 git clone <this-repo>
-cd workshop-client
+cd myhubedge
 
-# 2. Create + activate a Python virtual environment
-python3 -m venv .venv
-source .venv/bin/activate          # Windows:  .venv\Scripts\activate
+# 2. Install dependencies into a managed .venv (creates uv.lock-pinned env)
+uv sync
 
-# 3. Install dependencies — pick one:
-pip install -r requirements.txt    # classic, fastest path
-# OR:
-pip install .                      # via pyproject.toml (modern)
-# OR (if you use uv):
-uv pip install -r pyproject.toml
-
-# 4. Set up your Redis credentials.
+# 3. Set up your Redis credentials.
 #    Copy the template and fill in PICO_REDIS_HOST / PORT / USER / PASSWORD.
 #    `.env` is gitignored — never commit it.
 cp .env.example .env
 $EDITOR .env
 
-# 5. Download + cache the embedding model into ./hf_cache/ (~44 MB, one time).
+# 4. Download + cache the embedding model into ./hf_cache/ (~44 MB, one time).
 #    Subsequent runs load from cache — no internet needed after this.
 #    Re-run anytime to verify the cache is intact.
-python warmup.py
+uv run warmup.py
 
-# 6. Start your projector (keeps your unit's state doc alive)
-python participant.py pico-unit-1
+# 5. Start your projector (keeps your unit's state doc alive)
+uv run participant.py pico-unit-1
 
-# 7. In another terminal — natural-language command client
-#    (remember to `source .venv/bin/activate` in the new tab too)
-python send_nl.py
+# 6. In another terminal — natural-language command client
+uv run send_nl.py
 ```
 
-**Re-entering the project later?** Just re-activate the venv:
+`uv run <script>` automatically activates the project's `.venv` for the duration of the command — no `source .venv/bin/activate` needed. If you prefer the classic flow, `source .venv/bin/activate` still works after `uv sync`.
 
-```bash
-cd workshop-client
-source .venv/bin/activate
-python participant.py pico-unit-1
-```
+**Re-entering the project later?** Just `cd` in and `uv run …`. If `pyproject.toml` or `uv.lock` changed, `uv sync` brings the env up to date.
 
 Then type natural language commands:
 
@@ -87,7 +84,7 @@ Run the scripts in the order below. The Redis side (indexes + function embedding
 | File | Purpose |
 |------|---------|
 | `.env`              | Redis Cloud credentials. Copy `.env.example` to `.env` and fill in `PICO_REDIS_HOST`, `PICO_REDIS_PORT`, `PICO_REDIS_USER`, `PICO_REDIS_PASSWORD`. Gitignored — never commit it. |
-| `requirements.txt`  | Python deps; installed by `pip install -r requirements.txt` in Quick Start |
+| `pyproject.toml` + `uv.lock` | Python deps. Installed via `uv sync` in Quick Start. Run scripts with `uv run <name>.py`. |
 
 ### Already set up for you (don't rerun on the shared Redis)
 
@@ -177,7 +174,7 @@ Look for: `device_id`, `temperature` (°F), `humidity`, `timestamp`.
 
 **Terminal (run continuously)**
 ```bash
-python participant.py --unit pico-unit-1
+uv run participant.py --unit pico-unit-1
 ```
 
 The consumer is idempotent: if `state:<unit>` already exists, it's restored from Redis; otherwise it's seeded fresh. So you don't need to create the doc by hand — just running the script is enough. (If you'd like to see the raw `JSON.SET` your app issues, the standalone walkthrough is in [`json_doc_creation.md`](./json_doc_creation.md).)
@@ -448,7 +445,7 @@ redis-cli -u "$REDIS_URL" JSON.GET state:pico-unit-1 $.history
 
 **Python alternative**
 ```bash
-python send_command.py --target pico-unit-1 --fn blink --arg times=5 --arg ms=200
+uv run send_command.py --target pico-unit-1 --fn blink --arg times=5 --arg ms=200
 ```
 
 ---
@@ -479,7 +476,7 @@ Your query gets embedded with the same model, KNN finds the closest function, ta
 
 **Terminal**
 ```bash
-python send_nl.py
+uv run send_nl.py
 ```
 
 Try:
@@ -525,8 +522,8 @@ Other ideas:
 If you replay this stack on a **Redis Cloud Enterprise** database or a **Redis Enterprise Software** cluster you administer and want a clean slate:
 
 ```bash
-python create_index.py --recreate    # rebuilds idx:state + idx:functions, leaves JSON docs
-python register_functions.py         # overwrites fn:* with fresh embeddings
+uv run create_index.py --recreate    # rebuilds idx:state + idx:functions, leaves JSON docs
+uv run register_functions.py         # overwrites fn:* with fresh embeddings
 ```
 
 Don't run these against the shared workshop Redis — you'll wipe everyone's `fn:*` docs while the embedder warms up.

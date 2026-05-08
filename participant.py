@@ -22,10 +22,10 @@ The Pico is a pure stream producer — this script is the ONLY JSON writer.
 Credentials resolve: CLI flag > env var > .env (next to this script) > localhost default.
 
 Install:
-    pip install redis
+    uv sync
 
 Run:
-    python client/participant.py --unit pico-unit-1
+    uv run participant.py --unit pico-unit-1
 """
 from __future__ import annotations
 

@@ -1,4 +1,0 @@
-redis>=5.0
-sentence-transformers>=3.0
-redisvl>=0.15
-numpy

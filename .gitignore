@@ -5,3 +5,4 @@ __pycache__/
 .env
 redis_creds.py
 hf_cache/
+*.egg-info/

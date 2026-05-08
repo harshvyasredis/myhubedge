@@ -5,18 +5,18 @@ The Pico fleet tails this stream via per-unit consumer groups
 its own unit_id or "all". See pico/functions.py for the registry.
 
 Examples:
-    python client/send_command.py --target pico-unit-1 --fn led_on
-    python client/send_command.py --target pico-unit-1 --fn led_off
-    python client/send_command.py --target pico-unit-1 --fn blink \\
+    uv run send_command.py --target pico-unit-1 --fn led_on
+    uv run send_command.py --target pico-unit-1 --fn led_off
+    uv run send_command.py --target pico-unit-1 --fn blink \\
         --arg times=5 --arg ms=100
-    python client/send_command.py --target all --fn say \\
+    uv run send_command.py --target all --fn say \\
         --arg message="hello fleet" --arg secs=8
 
 Credentials resolve the same way as create_index.py and participant.py:
     CLI flag > env var > .env (next to this script) > localhost default.
 
 Install:
-    pip install redis
+    uv sync
 """
 from __future__ import annotations
 

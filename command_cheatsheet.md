@@ -195,9 +195,9 @@ redis-cli -u "$REDIS_URL" XADD stream:commands '*' target all         fn led_on 
 ### Python helper (no JSON quoting headache)
 
 ```bash
-python send_command.py --target pico-unit-2 --fn led_on
-python send_command.py --target pico-unit-2 --fn blink --arg times=5 --arg ms=200
-python send_command.py --target all          --fn say --arg message="hello fleet" --arg secs=6
+uv run send_command.py --target pico-unit-2 --fn led_on
+uv run send_command.py --target pico-unit-2 --fn blink --arg times=5 --arg ms=200
+uv run send_command.py --target all          --fn say --arg message="hello fleet" --arg secs=6
 ```
 
 ### Watch the resulting events
@@ -219,7 +219,7 @@ redis-cli -u "$REDIS_URL" JSON.GET state:pico-unit-2 $.history
 Embeds your English prompt with `redis/langcache-embed-v3-small`, runs KNN against `idx:functions`, parses the target unit out of the text, and XADDs to `stream:commands`. Prints timing for each step.
 
 ```bash
-python send_nl.py
+uv run send_nl.py
 ```
 
 Then at the prompt:
@@ -234,5 +234,5 @@ Then at the prompt:
 One-shot mode:
 
 ```bash
-python send_nl.py "blink the led on unit 1"
+uv run send_nl.py "blink the led on unit 1"
 ```

@@ -12,11 +12,11 @@ Stack:
   - Response:   XREAD stream:events (waits for fn_end from Pico)
 
 Install:
-    pip install redis sentence-transformers redisvl
+    uv sync
 
 Run:
-    python client/send_nl.py
-    python client/send_nl.py "flash the led on unit 1"   # one-shot mode
+    uv run send_nl.py
+    uv run send_nl.py "flash the led on unit 1"   # one-shot mode
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ import sys
 import time as _time
 
 # Pin the HuggingFace cache to `hf_cache/` next to this file so the
-# model only downloads once. Run `python warmup.py` first to populate
+# model only downloads once. Run `uv run warmup.py` first to populate
 # it; subsequent runs (here and in send_nl.py) load offline from cache.
 # Must run BEFORE the sentence_transformers import because env vars
 # are read at construction time.

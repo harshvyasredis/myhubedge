@@ -27,7 +27,7 @@ their unit's state. Only diffs trigger a write.
 
 **Terminal (each participant):**
 ```bash
-python participant.py --unit pico-unit-1
+uv run participant.py --unit pico-unit-1
 ```
 
 **Output to watch for:**
@@ -104,8 +104,8 @@ JSON.GET state:pico-unit-1 $.history
 
 **CLI alternative:**
 ```bash
-python send_command.py --target pico-unit-1 --fn blink --arg times=3
-python send_command.py --target pico-unit-1 --fn say --arg message="hi" --arg secs=5
+uv run send_command.py --target pico-unit-1 --fn blink --arg times=3
+uv run send_command.py --target pico-unit-1 --fn say --arg message="hi" --arg secs=5
 ```
 
 ---
@@ -129,7 +129,7 @@ JSON.GET fn:blink $.name $.description $.phrases $.code
 
 **Run the registration (facilitator, already done):**
 ```bash
-python register_functions.py
+uv run register_functions.py
 ```
 
 ---
@@ -142,7 +142,7 @@ Pico executes, response comes back. No LLM — just vector math.
 
 **Terminal (each participant):**
 ```bash
-python send_nl.py
+uv run send_nl.py
 ```
 
 **Try these:**
@@ -173,13 +173,13 @@ python send_nl.py
   (`location`, `notes`, `alert: temp > 80`)
 - Create a dynamic function at runtime:
   ```bash
-  python send_command.py --target pico-unit-1 --fn create_function \
+  uv run send_command.py --target pico-unit-1 --fn create_function \
     --arg name=flash_fast \
     --arg 'code=async def handler(args):
       _led.on(); await asyncio.sleep_ms(50)
       _led.off(); return "flash"'
   ```
-  Then call it: `python send_command.py --target pico-unit-1 --fn flash_fast`
+  Then call it: `uv run send_command.py --target pico-unit-1 --fn flash_fast`
 - Write your own FT.AGGREGATE queries against the fleet
 - Try `FT.SEARCH idx:state "@temp:[90 +inf]"` to find hot units
 

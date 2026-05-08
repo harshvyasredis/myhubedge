@@ -8,13 +8,11 @@ locked-down Wi-Fi, or planes.
 The cache directory is gitignored (some hosts reject files >25 MB), so
 each environment downloads it once.
 
-Install dependencies first (pick one):
-    pip install -r requirements.txt          # classic
-    pip install .                            # via pyproject.toml
-    uv pip install -r pyproject.toml         # if you have uv
+Install dependencies first:
+    uv sync
 
 Then:
-    python warmup.py
+    uv run warmup.py
 """
 from __future__ import annotations
 
@@ -61,7 +59,7 @@ def main() -> None:
         from sentence_transformers import SentenceTransformer
     except ImportError as e:
         print(f"\nwarmup: sentence-transformers not installed — {e}", file=sys.stderr)
-        print("  fix:  pip install -r requirements.txt", file=sys.stderr)
+        print("  fix:  uv sync   (then re-run with: uv run warmup.py)", file=sys.stderr)
         sys.exit(1)
 
     t0 = time.perf_counter()
@@ -86,8 +84,8 @@ def main() -> None:
     print(f"  embedding shape: {out.shape}  (expected (1, {DIM}))")
     print()
     print("You're set. Try:")
-    print("  python participant.py pico-unit-1")
-    print("  python send_nl.py")
+    print("  uv run participant.py pico-unit-1")
+    print("  uv run send_nl.py")
 
 
 if __name__ == "__main__":

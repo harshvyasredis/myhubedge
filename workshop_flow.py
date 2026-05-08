@@ -5,7 +5,7 @@ jump ahead. Functions execute live on connected Picos while the facilitator
 explains each concept.
 
 Run:
-    python client/workshop_flow.py --unit pico-unit-1
+    uv run workshop_flow.py --unit pico-unit-1
 
 Each step:
   1. Shows an ASCII visual of the architecture layer being demonstrated.
@@ -180,7 +180,7 @@ def run_step(r: redis.Redis, unit_id: str, step: int, total: int) -> bool:
             print(f"    {YELLOW}(run participant.py first: {e}){RESET}")
         print()
         participant_try("""
-    Run:  python client/participant.py --unit <your-unit>
+    Run:  uv run participant.py --unit <your-unit>
     Then in Redis Insight:
       JSON.GET state:<your-unit> $
         """)
@@ -275,8 +275,8 @@ def run_step(r: redis.Redis, unit_id: str, step: int, total: int) -> bool:
                         break
         print()
         participant_try("""
-    python client/send_command.py --target <your-unit> --fn blink --arg times=5
-    python client/send_command.py --target <your-unit> --fn say --arg message="hello"
+    uv run send_command.py --target <your-unit> --fn blink --arg times=5
+    uv run send_command.py --target <your-unit> --fn say --arg message="hello"
         """)
 
     # ── STEP 6: VECTOR SEARCH — NL DISPATCH ──
@@ -314,7 +314,7 @@ def run_step(r: redis.Redis, unit_id: str, step: int, total: int) -> bool:
             print(f"    {YELLOW}{name:<18}{RESET} {desc[:55]}")
         print()
         participant_try("""
-    python client/send_nl.py
+    uv run send_nl.py
     Then type: "flash the led on unit 1"
                "blink 5 times"
                "show hello on the screen"
@@ -350,7 +350,7 @@ def run_step(r: redis.Redis, unit_id: str, step: int, total: int) -> bool:
     You can also create NEW functions at runtime:
         """)
         print(f"  {BOLD}Dynamic function registration:{RESET}\n")
-        print(f'    python client/send_command.py --target {unit_id} \\')
+        print(f'    uv run send_command.py --target {unit_id} \\')
         print(f'      --fn create_function \\')
         print(f'      --arg name=flash_fast \\')
         print(f'      --arg \'code=async def handler(args):')

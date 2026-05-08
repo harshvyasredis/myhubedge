@@ -14,10 +14,10 @@ The per-phrase `embeddings` array is stored for transparency and debugging.
 Embedding: redis/langcache-embed-v3-small from HuggingFace, truncated to 300 dims.
 
 Install:
-    pip install redis sentence-transformers redisvl
+    uv sync
 
 Run:
-    python client/register_functions.py
+    uv run register_functions.py
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ import sys
 import time
 
 # Pin the HuggingFace cache to `hf_cache/` next to this file so the
-# model only downloads once. Run `python warmup.py` first to populate.
+# model only downloads once. Run `uv run warmup.py` first to populate.
 _LOCAL_HF = pathlib.Path(__file__).parent.resolve() / "hf_cache"
 _LOCAL_HF.mkdir(exist_ok=True)
 os.environ.setdefault("HF_HOME", str(_LOCAL_HF))

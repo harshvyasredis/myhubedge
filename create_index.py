@@ -9,10 +9,10 @@ Creates two indexes:
    Powers KNN vector search for natural-language command dispatch.
 
 Install:
-    pip install redis
+    uv sync
 
 Run once:
-    python client/create_index.py
+    uv run create_index.py
 
 Re-run safely with --recreate to DROPINDEX + CREATE (docs untouched).
 

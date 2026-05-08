@@ -143,7 +143,7 @@ redis-cli -u "$REDIS_URL" JSON.ARRAPPEND state:pico-unit-1 '$.history' \
 ## 4. Hand off to your consumer
 
 ```bash
-python participant.py --unit pico-unit-1
+uv run participant.py --unit pico-unit-1
 ```
 
 Expected first line:
@@ -158,7 +158,7 @@ If you want a clean slate, delete the key and let `participant.py` build it from
 
 ```bash
 redis-cli -u "$REDIS_URL" DEL state:pico-unit-1
-python participant.py --unit pico-unit-1     # → bootstrap: set state:pico-unit-1 — temp=… hum=…
+uv run participant.py --unit pico-unit-1     # → bootstrap: set state:pico-unit-1 — temp=… hum=…
 ```
 
 ---
